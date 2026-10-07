@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: CC0-1.0
+#
+# libcamera tuning file for the GalaxyCore GC2607 sensor (HUAWEI ENZH-XX,
+# \_SB_.PC00.LNK0). Install to /usr/share/libcamera/ipa/simple/gc2607.yaml —
+# libcamera looks it up by the sensor model name, otherwise it uses
+# uncalibrated.yaml.
+#
+# Differences from uncalibrated.yaml — the Ccm (CCM) algorithm is enabled:
+#   1) neutral axis: AWB in the simple IPA equalizes the sensor R/G/B sums
+#      (grey-world), but the GC2607 blue channel is less sensitive, so without a
+#      CCM the frame goes green (measured: G/R=1.045, G/B=1.149 on linear means);
+#   2) saturation: without the matrix the colours look washed out (saturation 0.13
+#      versus 0.16).
+#
+# The matrix was derived empirically on this machine (see scripts/derive-ccm.py in
+# bootstrap-notes): D = diag(1.042, 1, 1.150) removes the residual shift,
+# S(0.5) = I + 0.5*(I - L) adds saturation without changing hue.
+# The rows of D*S do not sum to 1 — the matrix is tuned exactly for the current
+# AWB (grey-world) behaviour, which is what keeps the frame average grey.
+#
+# The blackLevel value is deliberately NOT set: the GC2607 has no
+# CameraSensorHelper, and the simple IPA guesses the level from the histogram
+# (default value 16 in the 8-bit domain). Experiment showed that an explicit 32
+# (>>8) over-subtracts and breaks the picture in a dim scene, while 16 reproduces
+# the stock behaviour.
+#
+# Enabling Ccm additionally publishes the libcamera Saturation control (0..2,
+# default 1.0) — applications and libcamerasrc (extra-controls) can adjust the
+# saturation without editing this file.
+%YAML 1.1
+---
+version: 1
+algorithms:
+  - BlackLevel:
+  - Awb:
+  - Ccm:
+      ccms:
+        - ct: 2860
+          ccm: [ 1.4547, -0.3576, -0.0416,
+                 -0.1109,  1.1424, -0.0416,
+                 -0.1109, -0.3576,  1.6852 ]
+        - ct: 7000
+          ccm: [ 1.4547, -0.3576, -0.0416,
+                 -0.1109,  1.1424, -0.0416,
+                 -0.1109, -0.3576,  1.6852 ]
+  - Adjust:
+  - Agc:
+...

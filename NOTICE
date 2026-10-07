@@ -1,0 +1,46 @@
+# Licenses and authorship (NOTICE)
+
+This repository **collects and packages third-party code** plus a few small changes of our own.
+The list of components and their licenses:
+
+| Component | Source | License |
+|---|---|---|
+| kernel driver `gxfp` (eSPI mailbox), utilities, libfprint fork with the `gxfpmoc` driver | `github.com/Metrohan/gxfp5130-linux` (vendors the work of `Void755/gxfp_linux_driver`, `Void755/gxfpmoc`, `Void755/libfprint`) | GPL-2.0 (kernel and utilities), LGPL-2.1+ (libfprint) |
+| our patch `patches/fdt-wait-up.patch` (firmware `GF_GCC_EC_20069`) | this repository | GPL-2.0-only (in the project's context) |
+| V4L2 driver `gc2607` and the `ipu-bridge-gc2607` module | `github.com/AlexDaichendt/gc2607-camera-linux` | GPL-2.0 (kernel modules) |
+| patch `patches/ipu-bridge-GCTI2607.patch` (ACPI HID `GCTI2607`, candidate for linux-media) | this repository | GPL-2.0-only |
+| `patches/gc2607.yaml` (the `Ccm` tuning file for the libcamera simple IPA) and `patches/derive-ccm.py` | this repository | GPL-2.0-only |
+| build/install scripts, systemd units and documentation | this repository | GPL-2.0-only |
+
+Full license texts: `LICENSE` (GPL-2.0) and `LICENSE.LGPL-2.1` (LGPL-2.1+).
+
+## Authors and credits
+
+* **Void755** — the original GXFP5130 kernel driver, the `gxfpmoc` userspace library and the
+  libfprint fork with the `gxfpmoc` driver. Without this work the scanner stack on Linux would
+  simply not exist.
+* **Metrohan** — packaging and finishing `gxfp5130-linux` (PAM integration, DKMS, preparing the
+  mainline patch), the compatibility table and troubleshooting; maintains the project and handles
+  reports.
+* **AlexDaichendt** — the GC2607 sensor driver and the `ipu-bridge-gc2607` module.
+* **nawka12**, **TarekELz** and other contributors to the upstream projects (Arch packaging, the
+  SIGFM matcher, SELinux policy and more).
+
+The documentation, patches and measurements in this repository were collected while working on a
+specific unit of the **HUAWEI MateBook GT 14 (ENZH-XX)**; the primary data (logs, exchange dumps,
+frames) is in `docs/` as excerpts, and the methodology is in the respective sections.
+
+## What is deliberately NOT published
+
+* **The fingerprint sensor PSK** (`/var/lib/fprintd/gxfp/psk_raw32.bin`) and provisioning dumps
+  (`gxfp_psk_tool --dump-bb010002/3`) — these are per-device, every unit has its own; they are not
+  in the repository and must not be.
+* **Raw exchange logs** from the probe (`/dev/gxfp`) — may contain per-device data.
+* **The MOK enrollment password** and any signing keys — scrubbed from the documentation; every
+  user creates their own key (`docs/04-secureboot-mok.md`).
+
+## Not affiliated with anyone
+
+This is a personal hardware-enablement effort for one laptop model. It is not affiliated with,
+endorsed by, or supported by HUAWEI, Goodix, GalaxyCore, the upstream projects or their authors.
+All trademarks belong to their respective owners; all third-party code keeps its own license.

@@ -1,0 +1,18 @@
+# build working directories
+build/
+dist/
+
+# built packages and build objects
+*.deb
+*.o
+*.ko
+*.ko.zst
+*.mod
+*.mod.c
+.tmp_versions/
+Module.symvers
+
+# upstream sources downloaded by the build script
+upstream/
+
+__pycache__/

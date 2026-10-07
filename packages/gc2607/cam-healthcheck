@@ -1,0 +1,80 @@
+#!/bin/sh
+# cam-healthcheck — verifies the GalaxyCore GC2607 camera stack:
+#   DKMS modules (gc2607 + ipu-bridge-gc2607) → camera visibility in libcamera →
+#   integrity of the Ccm tuning file → virtual camera /dev/video60.
+#
+# Manual run: cam-healthcheck
+# Automatic:  systemctl --user status cam-healthcheck.timer (enabled by the package)
+set -u
+
+PKG=gc2607-camera-stack
+CCM=/usr/share/libcamera/ipa/simple/gc2607.yaml
+MANIFEST="/usr/share/doc/$PKG/expected-md5.txt"
+KREL=$(uname -r)
+
+rc=0
+msg=""
+add() { msg="$msg
+- $1"; rc=1; }
+
+# 1. DKMS modules for the current kernel
+for m in gc2607 ipu-bridge-gc2607; do
+	if ! dkms status -m "$m" 2>/dev/null | grep -q "$KREL.*installed"; then
+		add "$m is not built for kernel $KREL (see dkms status; after a kernel update reinstall the package)"
+	fi
+done
+
+# 2. ipu_bridge must be loaded from updates/dkms (our patch adds the GCTI2607 HID)
+ipufile=$(modinfo -F filename ipu_bridge 2>/dev/null || true)
+if [ -n "$ipufile" ]; then
+	case "$ipufile" in
+		*/updates/dkms/*) ;;
+		*) add "ipu_bridge is not loaded from updates/dkms: $ipufile (the camera may not appear)" ;;
+	esac
+else
+	add "module ipu_bridge not found (is the camera module loaded?)"
+fi
+
+# 3. Ccm tuning file and its integrity
+if [ -f "$CCM" ]; then
+	if [ -f "$MANIFEST" ]; then
+		exp=$(awk -v p="$CCM" '$2==p {print $1}' "$MANIFEST")
+		cur=$(md5sum "$CCM" 2>/dev/null | awk '{print $1}')
+		[ -n "$exp" ] && [ "$exp" != "$cur" ] && add "$CCM md5 changed: $cur (expected $exp)"
+	fi
+else
+	add "no $CCM — colour will fall back to uncalibrated (greenish and washed out)"
+fi
+
+# 4. camera is visible to libcamera (only meaningful if the modules are in place)
+if [ "$rc" = 0 ] && command -v cam >/dev/null 2>&1; then
+	if ! cam -l 2>/dev/null | grep -qi 'Internal front camera'; then
+		add "libcamera does not see 'Internal front camera' (cam -l)"
+	fi
+fi
+
+# 5. virtual camera
+if modinfo -F filename v4l2loopback >/dev/null 2>&1; then
+	[ -e /dev/video60 ] || add "no /dev/video60 (v4l2loopback not loaded or relayd not up)"
+	if command -v systemctl >/dev/null 2>&1; then
+		systemctl --user is-active gc2607-vcam.service >/dev/null 2>&1 || \
+			add "user service gc2607-vcam.service is not active (systemctl --user start gc2607-vcam.service)"
+	fi
+else
+	echo "cam: v4l2loopback module for kernel $KREL is not installed — no virtual camera"
+	echo "     install: sudo apt install linux-main-modules-v4l2loopback-$KREL"
+fi
+
+if [ "$rc" = 0 ]; then
+	echo "cam: OK — modules, Ccm tuning file and virtual camera are in place"
+else
+	printf 'cam: PROBLEM%s\n' "$msg"
+	if command -v notify-send >/dev/null 2>&1; then
+		notify-send -u critical -a cam-healthcheck \
+			"GC2607 camera: healthcheck failed" \
+			"$msg
+
+Details: /usr/share/doc/$PKG/README.md" || true
+	fi
+fi
+exit $rc

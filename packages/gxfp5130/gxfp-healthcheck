@@ -1,0 +1,50 @@
+#!/bin/sh
+# gxfp-healthcheck — verifies that the patched libfprint for the GXFP5130 sensor is in
+# place and actually loaded by fprintd (guards against a silent revert on system updates).
+#
+# Manual run: gxfp-healthcheck
+# Automatic:  systemctl --user status gxfp-healthcheck.timer
+set -u
+
+# md5 manifest: first the package documentation directory, then (for a local build from the notes) evidence
+MANIFEST=""
+for m in /usr/share/doc/gxfp5130-stack/expected-md5.txt \
+         "$HOME/bootstrap-notes/evidence/gxfp-patches/expected-md5.txt"; do
+	[ -f "$m" ] && { MANIFEST="$m"; break; }
+done
+SO=/usr/local/lib/x86_64-linux-gnu/libfprint-2.so.2.0.0
+
+rc=0
+msg=""
+add() { msg="$msg
+- $1"; rc=1; }
+
+[ -e /dev/gxfp ] || add "no /dev/gxfp (is the gxfp module loaded?)"
+[ -f "$SO" ] || add "missing $SO"
+
+if [ -f "$SO" ] && [ -n "$MANIFEST" ]; then
+	exp=$(awk -v p="$SO" '$2==p {print $1}' "$MANIFEST")
+	cur=$(md5sum "$SO" 2>/dev/null | awk '{print $1}')
+	[ -n "$exp" ] && [ "$exp" != "$cur" ] && add "libfprint md5 changed: $cur (expected $exp)"
+fi
+
+# ldd prints the symlink path (.so.2), while the manifest holds the real file (.so.2.0.0): compare resolved paths
+loaded=$(ldd /usr/libexec/fprintd 2>/dev/null | awk '/libfprint-2\.so\.2/ {print $3}')
+loaded_real=$(readlink -f "$loaded" 2>/dev/null || true)
+so_real=$(readlink -f "$SO" 2>/dev/null || true)
+[ -n "$loaded_real" ] && [ "$loaded_real" = "$so_real" ] || \
+	add "fprintd is loading a different library: ${loaded:-<nothing found>}"
+
+if [ "$rc" = 0 ]; then
+	echo "gxfp: OK — patched libfprint is in place and loaded by fprintd"
+else
+	printf 'gxfp: PROBLEM%s\n' "$msg"
+	if command -v notify-send >/dev/null 2>&1; then
+		notify-send -u critical -a gxfp-healthcheck \
+			"Fingerprint reader: the patch is no longer effective" \
+			"$msg
+
+Details: /usr/share/doc/gxfp5130-stack/README.md" || true
+	fi
+fi
+exit $rc
