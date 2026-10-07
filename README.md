@@ -128,6 +128,14 @@ order are in `packages/*/README.md` and the corresponding `docs/`.
   the library is built against a specific ABI. The order is: rebuild the stack from a fresh source,
   then upgrade (see `packages/gxfp5130/README.md`).
 
+## Related projects
+
+* [`hwmtb-gt-logo-control`](https://github.com/fstronin/hwmtb-gt-logo-control) — Linux control for
+  the illuminated HUAWEI wordmark on the lid of this laptop: DKMS module + LED class device
+  (`/sys/class/leds/huawei::logo`), a `hwlogo` CLI, a GNOME Quick Settings tile and a healthcheck.
+* [`gxfp5130-linux`](https://github.com/fstronin/gxfp5130-linux) — upstream of the fingerprint stack
+  used here (a fork: our `fdt-wait-up` fix for this firmware is PR #14 there).
+
 ## Licenses and credits
 
 Upstream code keeps its own licenses; our scripts and patches are GPL-2.0 (`LICENSE`),
