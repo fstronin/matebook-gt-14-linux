@@ -89,8 +89,24 @@ dpkg -i "$ROOT"/dist/gxfp5130-stack_*_amd64.deb "$ROOT"/dist/gc2607-camera-stack
 
 # ---------- 5. checks ----------
 say "== checks"
-command -v gxfp-healthcheck >/dev/null 2>&1 && gxfp-healthcheck || say "   gxfp-healthcheck not found"
-command -v cam-healthcheck  >/dev/null 2>&1 && cam-healthcheck  || say "   cam-healthcheck not found"
+# resolve absolutely: PATH can be sanitised under pkexec/sudo, and the packages
+# install the healthchecks into /usr/local/bin
+hc_path() {
+	for p in /usr/local/bin/"$1" /usr/bin/"$1"; do
+		[ -x "$p" ] && { printf '%s\n' "$p"; return 0; }
+	done
+	command -v "$1" 2>/dev/null || true
+}
+checks_failed=0
+for h in gxfp-healthcheck cam-healthcheck; do
+	p=$(hc_path "$h")
+	if [ -n "$p" ]; then
+		"$p" || { say "   $h reported a problem (see above)"; checks_failed=1; }
+	else
+		say "   $h not found"
+		checks_failed=1
+	fi
+done
 
 # enable the healthcheck units globally (they will run in the user session at next login)
 if command -v systemctl >/dev/null 2>&1; then
@@ -114,4 +130,8 @@ cat <<'EOT'
  3) fingerprint login/sudo — optional: docs/05-fingerprint-login-pam.md
  4) camera: colour is already configured (tuning file from the package); check — docs/03-camera-gc2607.md
  5) external GPU/Thunderbolt — no drivers needed, recipe in docs/08-egpu-hi-gt-cube.md
+ 6) if the virtual-camera unit warns that its file changed on disk:
+      systemctl --user daemon-reload && systemctl --user restart gc2607-vcam.service
 EOT
+
+[ "$checks_failed" = 0 ] || die "packages are installed, but a healthcheck reported a problem - see the output above"

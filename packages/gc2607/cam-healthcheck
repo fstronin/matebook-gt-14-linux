@@ -56,7 +56,12 @@ fi
 # 5. virtual camera
 if modinfo -F filename v4l2loopback >/dev/null 2>&1; then
 	[ -e /dev/video60 ] || add "no /dev/video60 (v4l2loopback not loaded or relayd not up)"
-	if command -v systemctl >/dev/null 2>&1; then
+	# gc2607-vcam.service is a *user* unit: checking it needs the user's session bus.
+	# Run as root (sudo/pkexec) that bus is not ours, so skip instead of crying wolf.
+	if [ "$(id -u)" = 0 ]; then
+		echo "cam: note — gc2607-vcam.service not checked (running as root):"
+		echo "     run cam-healthcheck as yourself, or look at 'systemctl --user status gc2607-vcam.service'"
+	elif [ -n "${XDG_RUNTIME_DIR:-}" ] && command -v systemctl >/dev/null 2>&1; then
 		systemctl --user is-active gc2607-vcam.service >/dev/null 2>&1 || \
 			add "user service gc2607-vcam.service is not active (systemctl --user start gc2607-vcam.service)"
 	fi
@@ -74,7 +79,7 @@ else
 			"GC2607 camera: healthcheck failed" \
 			"$msg
 
-Details: /usr/share/doc/$PKG/README.md" || true
+Details: /usr/share/doc/$PKG/README.md" 2>/dev/null || true
 	fi
 fi
 exit $rc

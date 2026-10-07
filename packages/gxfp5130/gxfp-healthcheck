@@ -6,12 +6,9 @@
 # Automatic:  systemctl --user status gxfp-healthcheck.timer
 set -u
 
-# md5 manifest: first the package documentation directory, then (for a local build from the notes) evidence
-MANIFEST=""
-for m in /usr/share/doc/gxfp5130-stack/expected-md5.txt \
-         "$HOME/bootstrap-notes/evidence/gxfp-patches/expected-md5.txt"; do
-	[ -f "$m" ] && { MANIFEST="$m"; break; }
-done
+# md5 manifest shipped with the package (see the package README)
+MANIFEST=/usr/share/doc/gxfp5130-stack/expected-md5.txt
+[ -f "$MANIFEST" ] || MANIFEST=""
 SO=/usr/local/lib/x86_64-linux-gnu/libfprint-2.so.2.0.0
 
 rc=0
@@ -44,7 +41,7 @@ else
 			"Fingerprint reader: the patch is no longer effective" \
 			"$msg
 
-Details: /usr/share/doc/gxfp5130-stack/README.md" || true
+Details: /usr/share/doc/gxfp5130-stack/README.md" 2>/dev/null || true
 	fi
 fi
 exit $rc
