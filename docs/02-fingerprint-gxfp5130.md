@@ -128,9 +128,11 @@ Files: `userspace/src/flow/fdt.c` **and** `libfprint/libfprint/drivers/gxfpmoc/s
 2. `FDT_WAIT_UP_MAX_RETRIES 3 → 20` (the window for lifting the finger, ~2.25 s → ~15 s). Measurement:
    the sensor reports "finger lifted" after 1.4–1.8 s even if the finger is lifted instantly, so
    enrollment aborted at stage 11 of 17 — and by that time fprintd had already erased the template.
-   Along with this, in `userspace/tests/fdt_retry_test.c` (and the copy in
-   `libfprint/libfprint/drivers/gxfpmoc/tests/`) the literal `flow.wait_up_retries = 3` was replaced
-   with `20`.
+   Along with this, both copies of `fdt_retry_test.c` (`userspace/tests/` and
+   `libfprint/libfprint/drivers/gxfpmoc/tests/`) raise the test budget to `20`
+   (`flow.wait_up_retries = 20`) and additionally assert that `3` is still retryable — that assertion
+   fails if the budget is lowered back, so it guards the budget itself, while `20` only pins the new
+   expiry point.
 
 ### Rebuild and install
 

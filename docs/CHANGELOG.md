@@ -1,4 +1,4 @@
-# Log: what was done and when (2026-10-06 → 07, HUAWEI ENZH-XX)
+# Log: what was done and when (2026-10-06 → 08, HUAWEI ENZH-XX)
 
 Times are machine-local (EET), approximate per step.
 
@@ -151,3 +151,21 @@ boltctl list           → WIKO Hi GT Cube: authorized + stored; lspci → 06:00
 - Camera: the `gc2607.yaml` tuning file **is installed** as of 2026-10-07 (CCM: neutrality + saturation),
   but it has no chart-based calibration — the matrix was derived self-consistently (`scripts/derive-ccm.py`);
   the driver does not expose selection rectangles; `dovdd/dvdd` are dummy regulators.
+
+## 2026-10-08: review on PR #14 — the vendored copy of the retry test
+
+The maintainer requested changes: the PR raised `FDT_WAIT_UP_MAX_RETRIES` 3 → 20 and updated
+`userspace/tests/fdt_retry_test.c`, but left `libfprint/libfprint/drivers/gxfpmoc/tests/fdt_retry_test.c`
+stale — with `BUILD_TESTING=ON` the vendored `gxfp_fdt_retry_policy` claim fails, because
+`gxfp_fdt_flow_wait_up_retry_due()` returns 1, not `-ETIMEDOUT`, for `wait_up_retries = 3`.
+
+Reproduced at the reviewed commit `7bd05e5` (vendored CMake project, `BUILD_TESTING=ON`): assertion
+`== -ETIMEDOUT` fails, exit 134. Fixed in `dece944`: the vendored test uses the budget `20`, and both
+copies additionally assert that `3` is **still retryable** — that assertion fails if the constant is
+lowered back, so it guards the budget itself, while `20` only pins the new expiry point. `ctest` passes
+in both trees (`userspace/` and `libfprint/libfprint/drivers/gxfpmoc/`, target `gxfp_fdt_retry_policy`).
+
+Runtime code is untouched (tests only), so nothing had to be rebuilt or reinstalled.
+`patches/fdt-wait-up.patch` and the `bootstrap-notes` evidence snapshot were re-synced with the PR head:
+the patch now carries four files and reproduces `dece944` byte-for-byte when applied to the pinned
+upstream `786e210`.
